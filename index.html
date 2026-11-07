@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大乱闘スマッシュ将棋 SPECIAL STOCKS - LV9 CPU EDITION</title>
+    <style>
+        body { margin: 0; padding: 0; background: #111; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
+        #screen-shaker { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        #game-container { width: 600px; height: 450px; background: #2c3e50; border: 4px solid #fff; border-radius: 12px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.7); overflow: hidden; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; box-sizing: border-box; }
+        #title-screen { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; background: #000; cursor: pointer; }
+        #title-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+        #press-any-button { position: relative; bottom: 40px; color: #ff3f3f; font-size: 18px; font-weight: bold; letter-spacing: 2px; animation: blink 1s infinite alternate; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 5px; }
+        @keyframes blink { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+        #select-screen { padding: 15px; background: linear-gradient(135deg, #1e272e, #485460); }
+        .select-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #ffd32a; text-shadow: 1px 1px 2px #000; }
+        .section-label { font-size: 11px; color: #d2dae2; margin: 4px 0; }
+        .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .char-btn { padding: 8px; font-weight: bold; background: #3c6382; color: #fff; border: 2px solid #0a3d62; border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; }
+        .char-btn:hover, .char-btn.selected { background: #60a3bc; border-color: #fff; transform: scale(1.03); }
+        #start-game-btn { width: 100%; padding: 10px; font-size: 15px; font-weight: bold; background: #eb2f06; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #char-desc { background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; font-size: 11px; min-height: 32px; margin-bottom: 10px; color: #f5cd79; border-left: 3px solid #f5cd79; }
+        #game-view { background: #111322; }
+        #battle-stage { width: 100%; height: 380px; position: relative; }
+        #main-platform { position: absolute; bottom: 90px; left: 100px; width: 400px; height: 16px; background: #444; border-top: 4px solid #777; box-sizing: border-box; z-index: 5; }
+        .sub-plat { position: absolute; height: 8px; background: #333; border-top: 2px solid #555; box-sizing: border-box; z-index: 5; }
+        #fire-ground { position: absolute; bottom: 90px; height: 25px; background: linear-gradient(to top, rgba(235, 47, 6, 0.7), rgba(255, 159, 67, 0)); z-index: 6; display: none; pointer-events: none; }
+        .piece { position: absolute; text-align: center; box-sizing: border-box; font-weight: bold; user-select: none; }
+        #player-fighter { width: 36px; height: 42px; background: #ffebc2; box-shadow: inset 0 0 0 1px #000; clip-path: polygon(50% 0%, 100% 25%, 85% 100%, 15% 100%, 0% 25%); padding-top: 6px; color: #000; font-size: 16px; z-index: 20; }
+        #enemy-fighter { width: 40px; height: 46px; background: #ffd27f; box-shadow: inset 0 0 0 1px #b32727; clip-path: polygon(50% 0%, 100% 23%, 86% 100%, 14% 100%, 0% 23%); padding-top: 8px; color: #b32727; font-size: 18px; z-index: 20; }
+        
+        .respawn-lift { position: absolute; width: 50px; height: 6px; background: #00d2ff; border-top: 2px solid #fff; box-shadow: 0 0 10px #00d2ff; border-radius: 3px; z-index: 18; display: none; }
+        
+        .status-bubble { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; background: rgba(0,0,0,0.7); color: #fff; padding: 2px 6px; border-radius: 10px; white-space: nowrap; display: none; z-index: 25; }
+        .silver-aura { position: absolute; top: -5px; left: -5px; width: 46px; height: 52px; border-radius: 5px; background: rgba(255, 63, 63, 0.3); box-shadow: 0 0 15px #ff3f3f, 0 0 25px #ff9f43; animation: aura-burn 0.4s infinite alternate; z-index: -1; display: none; }
+        @keyframes aura-burn { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.15); opacity: 0.9; } }
+        .gold-shield { position: absolute; top: -14px; left: -17px; width: 70px; height: 70px; border: 2px solid #ffd32a; border-radius: 50%; background: rgba(255, 211, 42, 0.15); box-shadow: 0 0 15px #ffd32a; display: none; z-index: 19; pointer-events: none; }
+        .weapon { position: absolute; top: 18px; width: 22px; height: 4px; }
+        #player-weapon { background: #e0e0e0; transform-origin: left center; }
+        #enemy-weapon { background: #e74c3c; transform-origin: right center; }
+        .projectile { position: absolute; background: #ffd32a; z-index: 15; pointer-events: none; }
+        .arrow { width: 18px; height: 3px; border-radius: 2px; box-shadow: 0 0 5px #ffd32a; }
+        .hyper-arrow { width: 45px; height: 6px; background: linear-gradient(90deg, #ff3f3f, #ffd32a); box-shadow: 0 0 15px #ff3f3f; }
+        .coin-bomb { width: 14px; height: 14px; background: #ffd700; border: 1px solid #b39200; border-radius: 50%; color: #000; font-size: 9px; font-weight: bold; line-height: 14px; text-align: center; box-shadow: 0 0 6px #ffd700; }
+        #hit-spark-cross { position: absolute; display: none; z-index: 40; pointer-events: none; transform: translate(-50%, -50%); }
+        .spark-line { position: absolute; background: #fff; box-shadow: 0 0 15px #ff3f3f, 0 0 30px #fff; }
+        .spark-h { width: 100px; height: 6px; top: -3px; left: -50px; transform: rotate(45deg); }
+        .spark-v { width: 600px; height: 2px; top: -1px; left: -300px; transform: rotate(-45deg); }
+        .particle { position: absolute; border-radius: 50%; pointer-events: none; z-index: 35; }
+        #keima-laser { position: absolute; top: 0; width: 45px; height: 380px; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 30%, rgba(0,210,255,1) 50%, rgba(255,255,255,1) 70%, rgba(255,255,255,0) 100%); box-shadow: 0 0 30px #00d2ff, 0 0 60px #0055ff; z-index: 31; display: none; pointer-events: none; }
+        .slash-wave { position: absolute; border: 4px solid #00d2ff; border-radius: 50%; background: rgba(0, 210, 255, 0.05); box-shadow: 0 0 20px #00d2ff, inset 0 0 20px #00d2ff; transform: translate(-50%, -50%) scale(0); pointer-events: none; z-index: 32; opacity: 0; }
+        
+        /* UIエリア */
+        #ui-bar { height: 70px; background: rgba(0,0,0,0.9); border-top: 2px solid #444; display: flex; justify-content: space-around; align-items: center; padding: 0 15px; box-sizing: border-box; }
+        .ui-box { text-align: center; font-size: 11px; width: 160px; }
+        .ui-dmg { font-size: 22px; font-weight: bold; color: #2ecc71; display: block; margin: 2px 0; }
+        .ui-status { color: #f1c40f; font-weight: bold; font-size: 10px; }
+        .ui-stocks { color: #ff4d4d; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
+        #controls-tip { font-size: 10px; color: #95a5a6; text-align: center; line-height: 1.3; }
+        .sp-bar-container { width: 100%; height: 8px; background: #222; border: 1px solid #555; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+        .sp-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #341f97, #00d2ff); }
+        .sp-bar-fill.ready { background: linear-gradient(90deg, #ff9f43, #ff3f3f); animation: gauge-flash 0.2s infinite alternate; }
+        @keyframes gauge-flash { 0% { opacity: 0.6; } 100% { opacity: 1; } }
+        #cutin-text { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5); font-size: 36px; font-weight: bold; color: #ffd32a; text-shadow: 0 0 15px #ff3f3f, 3px 3px 0 #000; z-index: 100; pointer-events: none; opacity: 0; }
+        
+        .stage-select { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .stage-btn { padding: 6px 15px; background: #4b6584; color: white; border: 2px solid #2f3640; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .stage-btn.selected { background: #10ac84; border-color: #fff; }
+    </style>
+</head>
+<body>
+
+<div id="screen-shaker">
+    <div id="game-container">
+        <!-- 1. タイトル画面 -->
+        <div id="title-screen" class="screen" style="display: flex;">
+            <img id="title-img" src="将棋.png" alt="大乱闘スマッシュ将棋 SPECIAL">
+            <div id="press-any-button">PRESS ANY BUTTON TO START</div>
+        </div>
+
+        <!-- 2. キャラクター選択画面 -->
+        <div id="select-screen" class="screen">
+            <div class="select-title">ファイター & ステージ選択 <span style="color:#ff3f3f; font-size:11px;">[LV.9 CPU]</span></div>
+            <div class="section-label">あなたの駒を選択してください：</div>
+            <div class="char-grid" id="char-grid-container"></div>
+            <div id="char-desc">駒の説明がここに表示されます。</div>
+            <div class="section-label">ステージを選択してください：</div>
+            <div class="stage-select">
+                <button type="button" class="stage-btn selected" onclick="selectStage(1, this)">終点風平原</button>
+                <button type="button" class="stage-btn" onclick="selectStage(2, this)">戦場風浮島</button>
+            </div>
+            <button id="start-game-btn" onclick="startGame()">乱闘開始！！</button>
+        </div>
+
+        <!-- 3. ゲームメイン画面 -->
+        <div id="game-view" class="screen">
+            <div id="battle-stage">
+                <div id="main-platform"></div>
+                <div id="plat-left" class="sub-plat" style="bottom:165px; left:140px; width:100px; display:none;"></div>
+                <div id="plat-right" class="sub-plat" style="bottom:165px; left:360px; width:100px; display:none;"></div>
+                <div id="plat-top" class="sub-plat" style="bottom:230px; left:250px; width:100px; display:none;"></div>
+                <div id="fire-ground"></div>
+
+                <div id="player-fighter" class="piece">
+                    <span id="p-text">歩</span>
+                    <div id="p-status-bubble" class="status-bubble"></div>
+                    <div id="p-aura" class="silver-aura"></div>
+                    <div id="p-shield" class="gold-shield"></div>
+                    <div id="player-weapon" class="weapon" style="right:-22px; transform-origin: left center;"></div>
+                </div>
+
+                <div id="enemy-fighter" class="piece">
+                    <span id="e-text">王</span>
+                    <div id="e-status-bubble" class="status-bubble">Zzz...</div>
+                    <div id="enemy-weapon" class="weapon" style="left:-22px; transform-origin: right center;"></div>
+                </div>
+
+                <div id="player-lift" class="respawn-lift"></div>
+                <div id="enemy-lift" class="respawn-lift"></div>
+
+                <div id="keima-laser"></div>
+                <div id="s-wave-1" class="slash-wave"></div>
+                <div id="s-wave-2" class="slash-wave"></div>
+                <div id="s-wave-3" class="slash-wave"></div>
+
+                <div id="hit-spark-cross">
+                    <div class="spark-line spark-h"></div>
+                    <div class="spark-line spark-v"></div>
+                </div>
+                <div id="cutin-text">秘技炸裂！</div>
+            </div>
+
+            <!-- UIエリア -->
+            <div id="ui-bar">
+                <div class="ui-box">
+                    <span id="ui-p-name" style="font-weight:bold;">あなた</span>
+                    <span id="ui-p-stocks" class="ui-stocks">○○○</span>
+                    <span id="ui-p-dmg" class="ui-dmg">0%</span>
+                    <div id="ui-p-status" class="ui-status"></div>
+                    <div class="sp-bar-container"><div id="sp-bar-fill" class="sp-bar-fill"></div></div>
+                </div>
+                <div id="controls-tip">
+                    【← / →】 移動 / 【Space】 ジャンプ<br>
+                    【Z】 通常攻撃 / 【X】 究極必殺技
+                </div>
+                <div class="ui-box">
+                    <span id="ui-e-name" style="font-weight:bold; color:#ff4d4d;">敵 (王将)</span>
+                    <span id="ui-e-stocks" class="ui-stocks">○○○</span>
+                    <span id="ui-e-dmg" class="ui-dmg">0%</span>
+                    <div id="ui-e-status" class="ui-status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CHAR_DATA = {
+    pawn: { name: '歩', speed: 3.6, jump: -10.5, weight: 1.0, power: 1.1, range: 42, desc: '【大器晩成型】5回殴ると『と金』に進化。進化した時1回のみ【X】で金の大爆撃を放つ！' },
+    lance: { name: '香', speed: 5.6, jump: -9.5, weight: 0.9, power: 1.2, range: 45, desc: '【猪突猛進型】前進特化。必殺技【X】で『成香』となり睡眠香を放ち王将を数秒間完全睡眠へ誘う。' },
+    knight: { name: '桂', speed: 3.4, jump: -14.5, weight: 0.8, power: 1.1, range: 40, desc: '【超高跳型】圧倒的ジャンプ力。必殺技【X】で『成桂』となり上空から回避不能の確定スタンビーム！' },
+    silver: { name: '銀', speed: 4.0, jump: -11.5, weight: 1.1, power: 1.2, range: 44, desc: '【空中変速型】機動派。必殺技【X】で全能力が金のステータスを凌駕するが、被ダメが2倍に！' },
+    gold: { name: '金', speed: 2.6, jump: -9.0, weight: 1.6, power: 1.4, range: 43, desc: '【重量鉄壁型】重量級。必殺技【X】で全身に結界を張り、攻撃力を上げつつ受けるダメージを永続半減。' },
+    bishop: { name: '角', speed: 4.4, jump: -12.0, weight: 0.85, power: 1.2, range: 50, desc: '【広角鋭利型】リーチ抜群。必殺技【X】で『竜馬』になり周囲360度を巨大な斬撃波で3連回転調理！' },
+    rook: { name: '飛', speed: 3.2, jump: -10.0, weight: 1.3, power: 1.6, range: 56, desc: '【超豪腕型】最高火力。必殺技【X】で『竜王』となりドラゴンを召喚。地面を7秒間業火で包み込む。' },
+    bow: { name: '弓', speed: 3.8, jump: -11.0, weight: 0.9, power: 0.9, range: 250, desc: '【完全遠距離型】新規参戦！Zで高速矢を連射、SP満タンの【X】でステージ端まで貫通する特大矢を射抜く！' }
+};
+
+const BOSS_DATA = [
+    { type: 'king1', name: '敵 (王将) [LV.9 バランス]', speed: 4.2, jump: -11.5, weight: 1.5, power: 1.5, range: 48, color: '#ffd27f', text: '王' },
+    { type: 'king2', name: '敵 (玉将) [LV.9 重量鉄壁]', speed: 3.2, jump: -10.5, weight: 2.4, power: 1.8, range: 52, color: '#bdc3c7', text: '玉' },
+    { type: 'king3', name: '敵 (裏王) [LV.9 快速猛攻]', speed: 5.0, jump: -13.0, weight: 1.2, power: 1.4, range: 46, color: '#e74c3c', text: '王' }
+];
+
+let currentBoss = BOSS_DATA[0];
+let selectedCharKey = 'pawn';
+let selectedStage = 1;
+let gameTimer = null;
+let p = {}, e = {};
+const keys = { arrowleft: false, arrowright: false, ' ': false, z: false, x: false };
+let spaceReleased = true;
+let zReleased = true;
+let xReleased = true;
+let projectiles = [];
+let activeFireTimer = 0;
+let enemySleepTimer = 0;
+let enemyStunTimer = 0;
+let isHitStopping = false;
+
+const scrTitle = document.getElementById('title-screen');
+const scrSelect = document.getElementById('select-screen');
+const scrGame = document.getElementById('game-view');
+
+scrTitle.addEventListener('click', () => { goToSelectScreen(); });
+window.addEventListener('keydown', function titleKeyHandler(ev) {
+    if (scrTitle.style.display !== 'none') { goToSelectScreen(); }
+});
+
+function goToSelectScreen() {
+    scrTitle.style.display = 'none';
+    scrSelect.style.display = 'block';
+    resetAllKeyStates();
+    initSelectScreen();
+}
+
+function initSelectScreen() {
+    const container = document.getElementById('char-grid-container');
+    container.innerHTML = '';
+    Object.keys(CHAR_DATA).forEach(key => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'char-btn' + (key === selectedCharKey ? ' selected' : '');
+        btn.textContent = CHAR_DATA[key].name;
+        btn.onclick = () => selectCharacter(key, btn);
+        container.appendChild(btn);
+    });
+    document.getElementById('char-desc').textContent = CHAR_DATA[selectedCharKey].desc;
+}
+
+function selectCharacter(key, element) {
+    selectedCharKey = key;
+    document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
+    element.classList.add('selected');
+    document.getElementById('char-desc').textContent = CHAR_DATA[selectedCharKey].desc;
+}
+
+function selectStage(num, element) {
+    selectedStage = num;
+    document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('selected'));
+    element.classList.add('selected');
+}
+
+function resetAllKeyStates() { 
+    keys.arrowleft = false; keys.arrowright = false; keys[' '] = false; keys.z = false; keys.x = false; 
+    spaceReleased = true; zReleased = true; xReleased = true; 
+}
+
+function handleKeyDown(ev) {
+    const k = ev.key.toLowerCase();
+    if (k === 'arrowleft') keys.arrowleft = true;
+    if (k === 'arrowright') keys.arrowright = true;
+    if (ev.key === ' ') { keys[' '] = true; ev.preventDefault(); }
+    if (k === 'z') keys.z = true;
+    if (k === 'x') keys.x = true;
+}
+
+function handleKeyUp(ev) {
+    const k = ev.key.toLowerCase();
+    if (k === 'arrowleft') keys.arrowleft = false;
+    if (k === 'arrowright') keys.arrowright = false;
+    if (ev.key === ' ') { keys[' '] = false; spaceReleased = true; }
+    if (k === 'z') { keys.z = false; zReleased = true; }
+    if (k === 'x') { keys.x = false; xReleased = true; }
+}
+
+function startGame() {
+    scrSelect.style.display = 'none';
+    scrGame.style.display = 'block';
+    resetAllKeyStates();
+    
+    const isBattlefield = (selectedStage === 2);
+    document.getElementById('plat-left').style.display = isBattlefield ? 'block' : 'none';
+    document.getElementById('plat-right').style.display = isBattlefield ? 'block' : 'none';
+    document.getElementById('plat-top').style.display = isBattlefield ? 'block' : 'none';
+    document.getElementById('main-platform').style.width = isBattlefield ? '360px' : '400px';
+    document.getElementById('main-platform').style.left = isBattlefield ? '120px' : '100px';
+    
+    projectiles.forEach(proj => proj.el.remove()); projectiles = [];
+    activeFireTimer = 0; enemySleepTimer = 0; enemyStunTimer = 0;
+    document.getElementById('fire-ground').style.display = 'none';
+    document.getElementById('e-status-bubble').style.display = 'none';
+    
+    currentBoss = BOSS_DATA[Math.floor(Math.random() * BOSS_DATA.length)];
+    document.getElementById('ui-e-name').textContent = currentBoss.name;
+    const eEl = document.getElementById('enemy-fighter');
+    eEl.style.background = currentBoss.color;
+    document.getElementById('e-text').textContent = currentBoss.text;
+    
+    const c = CHAR_DATA[selectedCharKey];
+    const pEl = document.getElementById('player-fighter');
+    pEl.style.background = '#ffebc2'; pEl.style.color = '#000'; pEl.style.boxShadow = 'inset 0 0 0 1px #000';
+    document.getElementById('p-aura').style.display = 'none';
+    document.getElementById('p-shield').style.display = 'none';
+    document.getElementById('ui-p-name').textContent = c.name;
+    document.getElementById('p-text').textContent = c.name;
+    
+    p = { x: 150, y: 150, vx: 0, vy: 0, dmg: 0, isGrounded: false, dir: 1, attacking: 0, hitCount: 0, isPromoted: false, knockbackTimer: 0, spGauge: 0, usedPawnSuper: false, silverMode: false, goldMode: false, speed: c.speed, jump: c.jump, weight: c.weight, power: c.power, range: c.range, stocks: 3, invulnTimer: 0, onLift: false, liftTimer: 0 };
+    e = { x: 420, y: 150, vx: 0, vy: 0, dmg: 0, isGrounded: false, dir: -1, attacking: 0, knockbackTimer: 0, speed: currentBoss.speed, jump: currentBoss.jump, weight: currentBoss.weight, power: currentBoss.power, range: currentBoss.range, stocks: 3, invulnTimer: 0, onLift: false, liftTimer: 0 };
+    
+    updateSPBar(); updateStockUI();
+    document.getElementById('ui-p-dmg').textContent = '0%'; document.getElementById('ui-p-dmg').style.color = '#2ecc71';
+    document.getElementById('ui-e-dmg').textContent = '0%'; document.getElementById('ui-e-dmg').style.color = '#2ecc71';
+    document.getElementById('ui-p-status').textContent = ''; document.getElementById('ui-e-status').textContent = '';
+    
+    window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
+    if (gameTimer) clearInterval(gameTimer);
+    gameTimer = setInterval(updateFrame, 1000 / 60);
+}
+
+function updateSPBar() {
+    const fill = document.getElementById('sp-bar-fill');
+    fill.style.width = p.spGauge + '%';
+    if (p.spGauge >= 100) fill.classList.add('ready'); else fill.classList.remove('ready');
+}
+
+function updateStockUI() {
+    let ps = ''; for(let i=0; i<p.stocks; i++) ps += '●'; document.getElementById('ui-p-stocks').textContent = ps;
+    let es = ''; for(let i=0; i<e.stocks; i++) es += '●'; document.getElementById('ui-e-stocks').textContent = es;
+}
+
+function triggerCameraShake() {
+    const shaker = document.getElementById('screen-shaker');
+    let count = 0;
+    let interval = setInterval(() => {
+        shaker.style.transform = 'translate(' + ((Math.random() - 0.5) * 12) + 'px, ' + ((Math.random() - 0.5) * 12) + 'px)';
+        count++; if (count > 8) { clearInterval(interval); shaker.style.transform = 'translate(0px, 0px)'; }
+    }, 20);
+}
+
+function triggerCutIn(txt) {
+    const ci = document.getElementById('cutin-text'); ci.textContent = txt; ci.style.opacity = '1'; ci.style.transform = 'translate(-50%, -50%) scale(1.2)'; ci.style.transition = 'transform 0.15s, opacity 0.15s';
+    setTimeout(() => { ci.style.transform = 'translate(-50%, -50%) scale(1.0)'; setTimeout(() => { ci.style.opacity = '0'; }, 600); }, 150);
+}
+
+function spawnHitVisual(x, y, isSuper = false) {
+    isHitStopping = true; setTimeout(() => { isHitStopping = false; }, isSuper ? 120 : 50);
+    const cross = document.getElementById('hit-spark-cross'); cross.style.left = x + 'px'; cross.style.top = y + 'px'; cross.style.display = 'block'; setTimeout(() => { cross.style.display = 'none'; }, 100);
+    if (isSuper) triggerCameraShake();
+    const stage = document.getElementById('battle-stage');
+    for (let i = 0; i < (isSuper ? 25 : 10); i++) {
+        const pEl = document.createElement('div'); pEl.className = 'particle';
+        let size = Math.random() * (isSuper ? 8 : 5) + 3;
+        pEl.style.width = size + 'px'; pEl.style.height = size + 'px'; pEl.style.background = isSuper ? '#ff3f3f' : '#ffd32a'; pEl.style.left = x + 'px'; pEl.style.top = y + 'px';
+        stage.appendChild(pEl);
+        let angle = Math.random() * Math.PI * 2; let speed = Math.random() * (isSuper ? 8 : 4) + 2;
+        let vx = Math.cos(angle) * speed; let vy = Math.sin(angle) * speed; let opacity = 1;
+        let pTimer = setInterval(() => {
+            pEl.style.left = (parseFloat(pEl.style.left) + vx) + 'px'; pEl.style.top = (parseFloat(pEl.style.top) + vy) + 'px';
+            vy += 0.15; opacity -= 0.04; pEl.style.opacity = opacity;
+            if (opacity <= 0) { clearInterval(pTimer); pEl.remove(); }
+        }, 1000 / 60);
+    }
+}
+
+function spawnProjectile(type, x, y, dir, vx, vy) {
+    const stage = document.getElementById('battle-stage'); const el = document.createElement('div'); el.className = 'projectile ' + type; el.style.left = x + 'px'; el.style.top = y + 'px'; if (type === 'coin-bomb') el.textContent = '金';
+    stage.appendChild(el); projectiles.push({ el: el, type: type, x: x, y: y, dir: dir, vx: vx, vy: vy });
+}
+
+function setupRespawn(char, isPlayer) {
+    char.dmg = 0; char.vx = 0; char.vy = 0; char.knockbackTimer = 0;
+    char.x = isPlayer ? 180 : 380; char.y = 40;
+    char.onLift = true; char.liftTimer = 120;
+    char.invulnTimer = 240;
+    const liftEl = document.getElementById(isPlayer ? 'player-lift' : 'enemy-lift');
+    liftEl.style.left = (char.x - 7) + 'px'; liftEl.style.top = (char.y + (isPlayer ? 42 : 46)) + 'px';
+    liftEl.style.display = 'block';
+    const dmgUi = document.getElementById(isPlayer ? 'ui-p-dmg' : 'ui-e-dmg');
+    dmgUi.textContent = '0%'; dmgUi.style.color = '#2ecc71';
+}
+
+function updateFrame() {
+    if (isHitStopping) return;
+    const pEl = document.getElementById('player-fighter'); const eEl = document.getElementById('enemy-fighter');
+    const pWp = document.getElementById('player-weapon'); const eWp = document.getElementById('enemy-weapon');
+    const pLiftEl = document.getElementById('player-lift'); const eLiftEl = document.getElementById('enemy-lift');
+    
+    if (p.invulnTimer > 0) { p.invulnTimer--; pEl.style.opacity = (p.invulnTimer % 10 < 5) ? '0.4' : '0.8'; } else { pEl.style.opacity = '1'; }
+    if (e.invulnTimer > 0) { e.invulnTimer--; eEl.style.opacity = (e.invulnTimer % 10 < 5) ? '0.4' : '0.8'; } else { eEl.style.opacity = '1'; }
+    
+    if (p.onLift) {
+        p.liftTimer--; p.vy = 0; p.vx = 0;
+        pLiftEl.style.left = (p.x - 7) + 'px'; pLiftEl.style.top = (p.y + 42) + 'px';
+        if (p.liftTimer <= 0 || keys.arrowleft || keys.arrowright || keys[' ']) {
+            p.onLift = false; pLiftEl.style.display = 'none'; p.invulnTimer = 120;
+        }
+    }
+    if (e.onLift) {
+        e.liftTimer--; e.vy = 0; e.vx = 0;
+        eLiftEl.style.left = (e.x - 5) + 'px'; eLiftEl.style.top = (e.y + 46) + 'px';
+        if (e.liftTimer <= 0 || Math.random() < 0.05) {
+            e.onLift = false; eLiftEl.style.display = 'none'; e.invulnTimer = 120;
+        }
+    }
+    
+    if (enemySleepTimer > 0) { enemySleepTimer--; document.getElementById('ui-e-status').textContent = '【睡眠中: ' + (enemySleepTimer/60).toFixed(1) + 's】'; if (enemySleepTimer <= 0) { document.getElementById('e-status-bubble').style.display = 'none'; document.getElementById('ui-e-status').textContent = ''; } }
+    if (enemyStunTimer > 0) { enemyStunTimer--; document.getElementById('ui-e-status').textContent = '【麻痺中: ' + (enemyStunTimer/60).toFixed(1) + 's】'; if (enemyStunTimer <= 0) { document.getElementById('e-status-bubble').style.display = 'none'; document.getElementById('ui-e-status').textContent = ''; } }
+    
+    if (activeFireTimer > 0) {
+        activeFireTimer--;
+        if (activeFireTimer % 120 === 0 && e.invulnTimer <= 0 && !e.onLift) {
+            let mLeft = (selectedStage === 2) ? 120 : 100; let mWidth = (selectedStage === 2) ? 360 : 400;
+            if (e.x + 20 > mLeft && e.x < mLeft + mWidth && e.y >= 230) { e.dmg += 5; document.getElementById('ui-e-dmg').textContent = e.dmg + '%'; spawnHitVisual(e.x + 20, e.y + 23, false); }
+        }
+        if (activeFireTimer <= 0) document.getElementById('fire-ground').style.display = 'none';
+    }
+    
+    if (!p.onLift) {
+        if (p.knockbackTimer > 0) { p.knockbackTimer--; } else {
+            let curSpd = p.speed; if (selectedCharKey === 'lance' && ((p.dir === 1 && keys.arrowleft) || (p.dir === -1 && keys.arrowright))) curSpd *= 0.5;
+            if (keys.arrowleft) { p.vx = -curSpd; p.dir = -1; pWp.style.left = '-22px'; pWp.style.right = 'auto'; pWp.style.transformOrigin = 'right center'; }
+            else if (keys.arrowright) { p.vx = curSpd; p.dir = 1; pWp.style.right = '-22px'; pWp.style.left = 'auto'; pWp.style.transformOrigin = 'left center'; }
+            else { p.vx *= (selectedCharKey === 'bishop') ? 0.88 : 0.70; }
+            if (keys[' '] && p.isGrounded && spaceReleased) { p.vy = p.jump; p.isGrounded = false; spaceReleased = false; }
+        }
+    }
+    
+    if (!p.onLift && p.knockbackTimer <= 0 && keys.z && p.attacking === 0 && zReleased) {
+        p.attacking = 12; zReleased = false; pWp.style.transform = p.dir === 1 ? 'rotate(75deg)' : 'rotate(-75deg)';
+        if (selectedCharKey === 'bow') { spawnProjectile('arrow', p.x + (p.dir === 1 ? 38 : -18), p.y + 18, p.dir, p.dir * 12, 0); } else {
+            let pCenterX = p.x + 18; let eCenterX = e.x + 20;
+            if (e.invulnTimer <= 0 && !e.onLift && Math.abs(pCenterX - eCenterX) < p.range && Math.abs(p.y - e.y) < 32) {
+                let pBonus = 1.0 + (e.dmg * 0.005); let dmgDeal = Math.floor((Math.random() * 6 + 6) * p.power * pBonus); e.dmg += dmgDeal;
+                document.getElementById('ui-e-dmg').textContent = e.dmg + '%';
+                document.getElementById('ui-e-dmg').style.color = e.dmg > 100 ? '#ff3f3f' : (e.dmg > 50 ? '#ff9f43' : '#2ecc71');
+                let kbScale = (3.5 + (e.dmg * 0.18)) / e.weight; e.vx = p.dir * kbScale; e.vy = - (2.5 + (e.dmg * 0.09)) / e.weight; e.knockbackTimer = Math.min(50, Math.floor(12 + e.dmg * 0.15));
+                if (enemySleepTimer <= 0 && enemyStunTimer <= 0) e.dir = -p.dir;
+                if (p.spGauge < 100) { p.spGauge = Math.min(100, p.spGauge + 14.3); updateSPBar(); }
+                spawnHitVisual((p.x + e.x) / 2 + 18, (p.y + e.y) / 2 + 20, e.dmg > 80);
+                if (selectedCharKey === 'pawn' && !p.isPromoted) {
+                    p.hitCount++; if (p.hitCount >= 5) {
+                        p.isPromoted = true; document.getElementById('p-text').textContent = 'と'; pEl.style.background = '#ffccd2'; pEl.style.color = '#d32f2f'; pEl.style.boxShadow = 'inset 0 0 0 2px #d32f2f';
+                        document.getElementById('ui-p-status').textContent = '【成金化! 全能力1.5倍】'; p.speed *= 1.5; p.power *= 1.5; p.weight *= 1.3; triggerCutIn('と金へ成金進化！');
+                    }
+                }
+            }
+        }
+    }
+    if (p.attacking > 0) { p.attacking--; if (p.attacking === 0) pWp.style.transform = 'rotate(0deg)'; }
+    
+    if (!p.onLift && p.knockbackTimer <= 0 && keys.x && p.spGauge >= 100 && xReleased) {
+        xReleased = false;
+        if (selectedCharKey === 'pawn' && p.isPromoted && !p.usedPawnSuper) { p.usedPawnSuper = true; p.spGauge = 0; updateSPBar(); triggerCutIn('秘技・金駒大散布爆撃！'); for (let i=0; i<8; i++) { setTimeout(() => { spawnProjectile('coin-bomb', p.x + 18, p.y, p.dir, p.dir * (3 + Math.random()*5), -4 - Math.random()*5); }, i * 80); } }
+        else if (selectedCharKey === 'bow') { p.spGauge = 0; updateSPBar(); triggerCutIn('究極貫通大矢射撃！'); spawnProjectile('hyper-arrow', p.x + (p.dir === 1 ? 40 : -45), p.y + 16, p.dir, p.dir * 16, 0); }
+        else if (selectedCharKey === 'lance') { p.spGauge = 0; updateSPBar(); triggerCutIn('成香：超睡眠香霧！'); if (e.invulnTimer <= 0 && !e.onLift && Math.abs((p.x+18) - (e.x+20)) < 160 && Math.abs(p.y - e.y) < 60) { enemySleepTimer = Math.floor(90 + Math.random() * 210); enemyStunTimer = 0; e.vx = 0; e.vy = 0; const bubble = document.getElementById('e-status-bubble'); bubble.textContent = 'Zzz...'; bubble.style.display = 'block'; } }
+        else if (selectedCharKey === 'knight') { p.spGauge = 0; updateSPBar(); triggerCutIn('成桂：極太天罰レーザー！'); const laser = document.getElementById('keima-laser'); laser.style.left = (e.x - 2) + 'px'; laser.style.display = 'block'; laser.style.opacity = '1'; setTimeout(() => { laser.style.opacity = '0'; setTimeout(() => { laser.style.display = 'none'; }, 100); }, 300); if(e.invulnTimer <= 0 && !e.onLift){ e.dmg += 18.5; document.getElementById('ui-e-dmg').textContent = e.dmg + '%'; enemyStunTimer = 180; enemySleepTimer = 0; e.vx = 0; e.vy = 0; const bubble = document.getElementById('e-status-bubble'); bubble.textContent = '⚡スタン⚡'; bubble.style.display = 'block'; spawnHitVisual(e.x + 20, e.y + 20, true); } }
+        else if (selectedCharKey === 'silver') { p.spGauge = 0; updateSPBar(); p.silverMode = true; triggerCutIn('成銀：修羅修羅の境地！'); document.getElementById('p-aura').style.display = 'block'; document.getElementById('ui-p-status').textContent = '【成銀: 攻撃機動最強化・被ダメ2倍】'; p.speed = 6.2; p.jump = -15.0; p.power = 2.0; }
+        else if (selectedCharKey === 'gold') { p.spGauge = 0; updateSPBar(); p.goldMode = true; triggerCutIn('金剛鉄壁：八方結界陣！'); document.getElementById('p-shield').style.display = 'block'; document.getElementById('ui-p-status').textContent = '【鉄壁: 攻撃1.5倍・被ダメ永続半減】'; p.power = 1.8; }
+        else if (selectedCharKey === 'bishop') {
+            p.spGauge = 0; updateSPBar(); triggerCutIn('竜馬：三連真・円月斬！'); let waves = [document.getElementById('s-wave-1'), document.getElementById('s-wave-2'), document.getElementById('s-wave-3')];
+            waves.forEach((w, idx) => { setTimeout(() => { w.style.left = (p.x + 18) + 'px'; w.style.top = (p.y + 21) + 'px'; w.style.display = 'block'; w.style.opacity = '1'; w.style.transform = 'translate(-50%, -50%) scale(2.2)'; w.style.transition = 'transform 0.25s, opacity 0.25s'; setTimeout(() => { w.style.opacity = '0'; w.style.transform = 'translate(-50%, -50%) scale(0)'; }, 250); if(e.invulnTimer<=0 && !e.onLift && Math.hypot((p.x + 18) - (e.x + 20), (p.y + 21) - (e.y + 23)) < 110) { e.dmg += 20.5; document.getElementById('ui-e-dmg').textContent = e.dmg + '%'; e.vx = (e.x > p.x ? 1 : -1) * 6; e.vy = -4; spawnHitVisual(e.x + 20, e.y + 23, true); } }, idx * 180); });
+        }
+        else if (selectedCharKey === 'rook') { p.spGauge = 0; updateSPBar(); triggerCutIn('竜王：獄炎地獄ブレス！'); activeFireTimer = 420; let mLeft = (selectedStage === 2) ? 120 : 100; let mWidth = (selectedStage === 2) ? 360 : 400; const fg = document.getElementById('fire-ground'); fg.style.left = mLeft + 'px'; fg.style.width = mWidth + 'px'; fg.style.display = 'block'; triggerCameraShake(); }
+    }
+    
+    // 【超強化：Lv.9 本格戦闘AIシステム】
+    if (!e.onLift) {
+        if (e.knockbackTimer > 0) { 
+            let mLeft = (selectedStage === 2) ? 120 : 100;
+            let mWidth = (selectedStage === 2) ? 360 : 400;
+            if (e.x < mLeft) e.vx += 0.15;
+            if (e.x > mLeft + mWidth) e.vx -= 0.15;
+            e.knockbackTimer--; 
+        } else if (enemySleepTimer <= 0 && enemyStunTimer <= 0) {
+            let pCenterX = p.x + 18;
+            let eCenterX = e.x + 20;
+            let dist = Math.abs(pCenterX - eCenterX);
+            let stageLeft = (selectedStage === 2) ? 120 : 100;
+            let stageWidth = (selectedStage === 2) ? 360 : 400;
+
+            e.vx = (pCenterX > eCenterX) ? e.speed : -e.speed;
+            e.dir = (pCenterX > eCenterX) ? 1 : -1;
+
+            if (e.dir === 1) { eWp.style.right = '-22px'; eWp.style.left = 'auto'; eWp.style.transformOrigin = 'left center'; } 
+            else { eWp.style.left = '-22px'; eWp.style.right = 'auto'; eWp.style.transformOrigin = 'right center'; }
+
+            if (e.isGrounded) {
+                if (p.y < e.y - 30 || e.x < stageLeft + 20 || e.x > stageLeft + stageWidth - 60) {
+                    if (Math.random() < 0.6) e.vy = e.jump;
+                }
+            }
+
+            if (p.invulnTimer <= 0 && !p.onLift && e.attacking === 0 && dist < e.range && Math.abs(e.y - p.y) < 36) {
+                if (Math.random() < 0.85) {
+                    e.attacking = 10; 
+                    eWp.style.transform = e.dir === 1 ? 'rotate(75deg)' : 'rotate(-75deg)';
+                    
+                    let pBonus = 1.0 + (p.dmg * 0.005); 
+                    let pDmgRaw = Math.floor((Math.random() * 8 + 8) * e.power * pBonus); 
+                    
+                    if (p.silverMode) pDmgRaw = Math.floor(pDmgRaw * 2.0); 
+                    if (p.goldMode) pDmgRaw = Math.floor(pDmgRaw * 0.5);
+                    
+                    p.dmg += pDmgRaw; 
+                    document.getElementById('ui-p-dmg').textContent = p.dmg + '%';
+                    document.getElementById('ui-p-dmg').style.color = p.dmg > 100 ? '#ff3f3f' : (p.dmg > 50 ? '#ff9f43' : '#2ecc71');
+                    
+                    let kbScale = (4.0 + (p.dmg * 0.20)) / p.weight; 
+                    p.vx = e.dir * kbScale; 
+                    p.vy = - (2.8 + (p.dmg * 0.10)) / p.weight; 
+                    p.knockbackTimer = Math.min(50, Math.floor(14 + p.dmg * 0.18)); 
+                    p.dir = -e.dir;
+                    
+                    spawnHitVisual((p.x + e.x) / 2 + 18, (p.y + e.y) / 2 + 18, p.dmg > 80);
+                }
+            }
+        }
+    }
+    if (e.attacking > 0) { e.attacking--; if (e.attacking === 0) eWp.style.transform = 'rotate(0deg)'; }
+    
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let proj = projectiles[i]; proj.x += proj.vx; proj.y += proj.vy; if (proj.type === 'coin-bomb') proj.vy += 0.25;
+        proj.el.style.left = proj.x + 'px'; proj.el.style.top = proj.y + 'px';
+        if (proj.x < -60 || proj.x > 660 || proj.y > 460) { proj.el.remove(); projectiles.splice(i, 1); continue; }
+        if (e.invulnTimer <= 0 && !e.onLift && proj.x + (proj.type==='hyper-arrow'?45:16) > e.x && proj.x < e.x + 40 && proj.y + 10 > e.y && proj.y < e.y + 46) {
+            let dmg = 4, kb = 2.5, isSuper = false; if (proj.type === 'hyper-arrow') { dmg = 22; kb = 9.0; isSuper = true; } else if (proj.type === 'coin-bomb') { dmg = 7; kb = 4.0; }
+            let pBonus = 1.0 + (e.dmg * 0.005); e.dmg += Math.floor(dmg * pBonus); document.getElementById('ui-e-dmg').textContent = e.dmg + '%';
+            e.vx = proj.dir * (kb + (e.dmg * 0.15)) / e.weight; e.vy = - (2.0 + (e.dmg * 0.06)) / e.weight; e.knockbackTimer = Math.min(50, Math.floor(12 + e.dmg * 0.12));
+            if (p.spGauge < 100) { p.spGauge = Math.min(100, p.spGauge + 14.3); updateSPBar(); }
+            spawnHitVisual(proj.x + 10, proj.y, isSuper); proj.el.remove(); projectiles.splice(i, 1);
+        }
+    }
+    
+    if (!p.onLift) { p.vy += 0.42; p.x += p.vx; p.y += p.vy; if (p.knockbackTimer > 0) p.vx *= 0.93; else p.vx *= 0.72; }
+    if (!e.onLift) { e.vy += 0.42; e.x += e.vx; e.y += e.vy; if (e.knockbackTimer > 0) e.vx *= 0.95; else e.vx *= 0.82; }
+    
+    function checkPlatform(char, w, h) {
+        char.isGrounded = false; if (char.vy < 0 || char.onLift) return;
+        let mLeft = (selectedStage === 2) ? 120 : 100; let mWidth = (selectedStage === 2) ? 360 : 400; let mTop = 380 - 90;
+        if (char.x + w > mLeft && char.x < mLeft + mWidth) { if (char.y + h >= mTop && (char.y + h - char.vy) <= mTop + 8) { char.y = mTop - h; char.vy = 0; char.isGrounded = true; return; } }
+        if (selectedStage === 2) {
+            let plats = [{l:140, r:240, t:380-165}, {l:360, r:460, t:380-165}, {l:250, r:350, t:380-230}];
+            for (let pt of plats) { if (char.x + w > pt.l && char.x < pt.r) { if (char.y + h >= pt.t && (char.y + h - char.vy) <= pt.t + 6) { char.y = pt.t - h; char.vy = 0; char.isGrounded = true; return; } } }
+        }
+    }
+    
+    checkPlatform(p, 36, 42); checkPlatform(e, 40, 46);
+    
+    if (p.x < -60 || p.x > 630 || p.y > 470 || p.y < -220) {
+        p.stocks--; updateStockUI();
+        if (p.stocks <= 0) { endMatch(false); return; } else { setupRespawn(p, true); }
+    }
+    if (e.x < -60 || e.x > 630 || e.y > 470 || e.y < -220) {
+        e.stocks--; updateStockUI();
+        if (e.stocks <= 0) { endMatch(true); return; } else { setupRespawn(e, false); }
+    }
+    
+    pEl.style.left = p.x + 'px'; pEl.style.top = p.y + 'px';
+    eEl.style.left = e.x + 'px'; eEl.style.top = e.y + 'px';
+}
+
+function endMatch(playerWon) {
+    clearInterval(gameTimer); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp);
+    resetAllKeyStates();
+    if (playerWon) { alert('王将のストックをすべて削り切った！LV9 CPUに完全勝利です！🏆'); }
+    else { let name = CHAR_DATA[selectedCharKey].name; if (selectedCharKey === 'pawn' && p.isPromoted) name = 'と金'; alert(name + 'の全ストックが消滅した…レベル9の圧倒的な力に敗北した。'); }
+    scrGame.style.display = 'none'; scrSelect.style.display = 'block'; initSelectScreen();
+}
+</script>
+</body>
+</html>
